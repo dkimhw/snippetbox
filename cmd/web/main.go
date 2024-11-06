@@ -11,6 +11,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"html/template"
 	"log/slog"
 	"net/http"
 	"os"
@@ -25,8 +26,9 @@ import (
 // inject dependencies by using application struct
 // useful for when all handlers are in the same package
 type application struct {
-	logger   *slog.Logger
-	snippets *models.SnippetModel
+	logger        *slog.Logger
+	snippets      *models.SnippetModel
+	templateCache map[string]*template.Template
 }
 
 func main() {
@@ -54,13 +56,19 @@ func main() {
 		logger.Error(err.Error())
 		os.Exit(1)
 	}
-
 	defer db.Close() // defer call - closes db before main() function closes
+
+	templateCache, err := newTemplateCache() // initialize a new template cache
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
 
 	// initialize a new instance of applicaiton struct containing dependencies
 	app := &application{
-		logger:   logger,
-		snippets: &models.SnippetModel{DB: db}, // Initialize a models.SnippetModel instance containing the connection pool
+		logger:        logger,
+		snippets:      &models.SnippetModel{DB: db}, // Initialize a models.SnippetModel instance containing the connection pool
+		templateCache: templateCache,
 	}
 
 	// Use the Info() method to log the starting server message at Info severity
