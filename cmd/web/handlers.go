@@ -16,10 +16,11 @@ import (
 // must be exported in order to be read by the html/template package when
 // rendering the template.
 type snippetCreateForm struct {
-	Title               string
-	Content             string
-	Expires             int
-	validator.Validator // embedded struct; Embedding this means that our snippetCreateForm "inherits" all the
+	Title               string     `form:"title"`
+	Content             string     `form:"content"`
+	Expires             int        `form:"expires"`
+	validator.Validator `form:"-"` // The struct tag `form:"-"` tells the decoder to completely ignore a field during decoding.
+	// embedded struct; Embedding this means that our snippetCreateForm "inherits" all the
 	// fields and methods of our Validator struct (including the FieldErrors field).
 }
 
@@ -73,22 +74,12 @@ func (app *application) snippetCreate(w http.ResponseWriter, r *http.Request) {
 
 // curl -iL -d "" http://localhost:4000/snippet/create
 func (app *application) snippetCreatePost(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseForm() // adds any data in POST request bodies to PostForm map
+	var form snippetCreateForm
+	err := app.decodePostForm(r, &form)
 	if err != nil {
+		// If there is a problem, we return a 400 Bad Request response to the client.
 		app.clientError(w, http.StatusBadRequest)
 		return
-	}
-
-	expires, err := strconv.Atoi(r.PostForm.Get("expires"))
-	if err != nil {
-		app.clientError(w, http.StatusBadRequest)
-		return
-	}
-
-	form := snippetCreateForm{
-		Title:   r.PostForm.Get("title"),
-		Content: r.PostForm.Get("content"),
-		Expires: expires,
 	}
 
 	// Validate inputs

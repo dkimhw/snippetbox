@@ -18,6 +18,7 @@ import (
 
 	// Not using anything in this package but need the `init()` function to run so
 	// it can register itself with the `database/sql` package
+	"github.com/go-playground/form/v4"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
 	"snippetbox.dkimhw.com/internal/models"
@@ -29,6 +30,7 @@ type application struct {
 	logger        *slog.Logger
 	snippets      *models.SnippetModel
 	templateCache map[string]*template.Template
+	formDecoder   *form.Decoder
 }
 
 func main() {
@@ -37,15 +39,12 @@ func main() {
 	// Define a new command-line flag with the name 'addr', a default value of ":4000"
 	// and some short help text explaining what the flag controls
 	addr := flag.String("addr", ":4000", "HTTP network address")
+	dsn := flag.String("dsn", fmt.Sprintf("web:%s@/snippetbox?parseTime=true", os.Getenv("DB_PASSWORD")), "MySQL data source name")
 	// Importantly, we use the flag.Parse() function to parse the command-line flag.
 	// This reads in the command-line flag value and assigns it to the addr
 	// variable. You need to call this *before* you use the addr variable
 	// otherwise it will always contain the default value of ":4000". If any errors are
 	// encountered during parsing the application will be terminated.
-	fmt.Printf("web:%s@/snippetbox?parseTime=true", os.Getenv("DB_PASSWORD"))
-
-	flag.Parse()
-	dsn := flag.String("dsn", fmt.Sprintf("web:%s@/snippetbox?parseTime=true", os.Getenv("DB_PASSWORD")), "MySQL data source name")
 	flag.Parse()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil)) // initialize a new structured logger
@@ -64,11 +63,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	formDecoder := form.NewDecoder()
+
 	// initialize a new instance of applicaiton struct containing dependencies
 	app := &application{
 		logger:        logger,
 		snippets:      &models.SnippetModel{DB: db}, // Initialize a models.SnippetModel instance containing the connection pool
 		templateCache: templateCache,
+		formDecoder:   formDecoder,
 	}
 
 	// Use the Info() method to log the starting server message at Info severity
