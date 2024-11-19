@@ -15,9 +15,12 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	// Not using anything in this package but need the `init()` function to run so
 	// it can register itself with the `database/sql` package
+	"github.com/alexedwards/scs/mysqlstore"
+	"github.com/alexedwards/scs/v2"
 	"github.com/go-playground/form/v4"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
@@ -27,10 +30,11 @@ import (
 // inject dependencies by using application struct
 // useful for when all handlers are in the same package
 type application struct {
-	logger        *slog.Logger
-	snippets      *models.SnippetModel
-	templateCache map[string]*template.Template
-	formDecoder   *form.Decoder
+	logger         *slog.Logger
+	snippets       *models.SnippetModel
+	templateCache  map[string]*template.Template
+	formDecoder    *form.Decoder
+	sessionManager *scs.SessionManager
 }
 
 func main() {
@@ -64,13 +68,17 @@ func main() {
 	}
 
 	formDecoder := form.NewDecoder()
+	sessionManager := scs.New()
+	sessionManager.Store = mysqlstore.New(db) // uses mysql to manage sessions
+	sessionManager.Lifetime = 12 * time.Hour  // lifetime of 12 hours for each session
 
 	// initialize a new instance of applicaiton struct containing dependencies
 	app := &application{
-		logger:        logger,
-		snippets:      &models.SnippetModel{DB: db}, // Initialize a models.SnippetModel instance containing the connection pool
-		templateCache: templateCache,
-		formDecoder:   formDecoder,
+		logger:         logger,
+		snippets:       &models.SnippetModel{DB: db}, // Initialize a models.SnippetModel instance containing the connection pool
+		templateCache:  templateCache,
+		formDecoder:    formDecoder,
+		sessionManager: sessionManager,
 	}
 
 	// Use the Info() method to log the starting server message at Info severity
