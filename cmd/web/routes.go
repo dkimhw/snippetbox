@@ -16,10 +16,14 @@ func (app *application) routes() http.Handler {
 	// "/static" prefix before the request reaches the file server.
 	mux.Handle("GET /static/", http.StripPrefix("/static", fileServer))
 
-	mux.HandleFunc("GET /{$}", app.home)
-	mux.HandleFunc("GET /snippet/view/{id}", app.snippetView)
-	mux.HandleFunc("GET /snippets/create", app.snippetCreate)
-	mux.HandleFunc("POST /snippets/create", app.snippetCreatePost)
+	// Create a new middleware chain containing the middleware specific to our
+	// dynamic applicaiton routes. This middleware automatically loads and saves session data with every HTTP request and response.
+	dynamic := alice.New(app.sessionManager.LoadAndSave)
+
+	mux.Handle("GET /{$}", dynamic.ThenFunc(app.home))
+	mux.Handle("GET /snippet/view/{id}", dynamic.ThenFunc(app.snippetView))
+	mux.Handle("GET /snippets/create", dynamic.ThenFunc(app.snippetCreate))
+	mux.Handle("POST /snippets/create", dynamic.ThenFunc(app.snippetCreatePost))
 
 	// Create a standard reusable middleware chain
 	standard := alice.New(app.recoverPanic, app.logRequest, commonHeaders)
