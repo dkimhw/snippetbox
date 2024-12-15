@@ -8,6 +8,7 @@ package main
 */
 
 import (
+	"crypto/tls"
 	"database/sql"
 	"flag"
 	"fmt"
@@ -71,6 +72,11 @@ func main() {
 	sessionManager := scs.New()
 	sessionManager.Store = mysqlstore.New(db) // uses mysql to manage sessions
 	sessionManager.Lifetime = 12 * time.Hour  // lifetime of 12 hours for each session
+	// Make sure that the Secure attribute is set on our session cookies.
+	// Setting this means that the cookie will only be sent by a user's web
+	// browser when a HTTPS connection is being used (and won't be sent over an
+	// unsecure HTTP connection).
+	sessionManager.Cookie.Secure = true
 
 	// initialize a new instance of applicaiton struct containing dependencies
 	app := &application{
@@ -81,11 +87,32 @@ func main() {
 		sessionManager: sessionManager,
 	}
 
+	// Initialize a tls.Config struct to hold the non-default TLS settings we
+	// want the server to use. In this case the only thing that we're changing
+	// is the curve preferences value, so that only elliptic curves with
+	// assembly implementations are used.
+	tlsConfig := &tls.Config{
+		CurvePreferences: []tls.CurveID{tls.X25519, tls.CurveP256},
+	}
+
+	// Initialize a new http.Server struct. We set teh Addr and Handler fields so
+	// that the server uses the same network address and routes as before
+	srv := &http.Server{
+		Addr:    *addr,
+		Handler: app.routes(),
+		// Create a *log.Logger from our structured logger handler, which writes
+		// log entries at Error level, and assign it to the ErrorLog field. If
+		// you would prefer to log the server errors at Warn level instead, you
+		// could pass slog.LevelWarn as the final parameter.
+		ErrorLog:  slog.NewLogLogger(logger.Handler(), slog.LevelError),
+		TLSConfig: tlsConfig, // Set the server's TLSConfig field
+	}
+
 	// Use the Info() method to log the starting server message at Info severity
 	// (along with the listen address as an attribute).
 	logger.Info("starting server", slog.String("addr", *addr))
 
-	err = http.ListenAndServe(*addr, app.routes()) // Pass the dereferenced addr pointer
+	err = srv.ListenAndServeTLS("./tls/cert.pem", "./tls/key.pem")
 	logger.Error(err.Error())
 	os.Exit(1)
 }
