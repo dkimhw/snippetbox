@@ -65,7 +65,8 @@ func (app *application) newTemplateData(r *http.Request) templateData {
 		// PopString() also deletes the key and value from the session data, so it
 		// acts like a one-time fetch. If there is no matching key in the session
 		// data this will return the empty string.
-		Flash: app.sessionManager.PopString(r.Context(), "flash"),
+		Flash:           app.sessionManager.PopString(r.Context(), "flash"),
+		IsAuthenticated: app.isAuthenticated(r),
 	}
 }
 
@@ -96,4 +97,9 @@ func (app *application) decodePostForm(r *http.Request, dst any) error {
 	}
 
 	return nil
+}
+
+// Return true if current request is form an authenticated user - else false.
+func (app *application) isAuthenticated(r *http.Request) bool {
+	return app.sessionManager.Exists(r.Context(), "authenticatedUserID")
 }
