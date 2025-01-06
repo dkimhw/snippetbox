@@ -17,7 +17,7 @@ func (app *application) routes() http.Handler {
 
 	// Create a new middleware chain containing the middleware specific to our
 	// dynamic applicaiton routes. This middleware automatically loads and saves session data with every HTTP request and response.
-	dynamic := alice.New(app.sessionManager.LoadAndSave, noSurf) // Unprotected application routes using the "dynamic" middleware chain.
+	dynamic := alice.New(app.sessionManager.LoadAndSave, noSurf, app.authenticate) // Unprotected application routes using the "dynamic" middleware chain.
 
 	mux.Handle("GET /{$}", dynamic.ThenFunc(app.home))
 	mux.Handle("GET /snippet/view/{id}", dynamic.ThenFunc(app.snippetView))
