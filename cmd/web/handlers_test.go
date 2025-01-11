@@ -34,12 +34,12 @@ func TestSnippetView(t *testing.T) {
 		wantCode int
 		wantBody string
 	}{
-		// {
-		// 	name:     "Valid ID",
-		// 	urlPath:  "/snippet/view/1",
-		// 	wantCode: http.StatusOK,
-		// 	wantBody: "An old silent pond...",
-		// },
+		{
+			name:     "Valid ID",
+			urlPath:  "/snippet/view/1",
+			wantCode: http.StatusOK,
+			wantBody: "An old silent pond...",
+		},
 		{
 			name:     "Non-existent ID",
 			urlPath:  "/snippet/view/2",

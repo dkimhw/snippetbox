@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"html"
 	"io"
 	"log/slog"
@@ -24,7 +23,6 @@ var csrfTokenRX = regexp.MustCompile(`<input type='hidden' name='csrf_token' val
 
 func extractCSRFToken(t *testing.T, body string) string {
 	matches := csrfTokenRX.FindStringSubmatch(body)
-	fmt.Printf("hello %q", body)
 	if len(matches) < 2 {
 		t.Fatal("no csrf token found in body")
 	}
@@ -73,8 +71,6 @@ func newTestServer(t *testing.T, h http.Handler) *testServer {
 	// Initialize the test server as normal.
 	ts := httptest.NewTLSServer(h)
 
-	fmt.Printf("dfsdds %v", ts)
-
 	// Initialize a new cookie jar.
 	jar, err := cookiejar.New(nil)
 	if err != nil {
@@ -106,16 +102,12 @@ func (ts *testServer) get(t *testing.T, urlPath string) (int, http.Header, strin
 		t.Fatal(err)
 	}
 
-	fmt.Printf("get error %v", rs)
-
 	defer rs.Body.Close()
 	body, err := io.ReadAll(rs.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
 	body = bytes.TrimSpace(body)
-
-	fmt.Printf("dsfsd body %v", string(body))
 
 	return rs.StatusCode, rs.Header, string(body)
 }
