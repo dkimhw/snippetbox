@@ -2,19 +2,63 @@ package main
 
 import (
 	"bytes"
+	"fmt"
+	"html"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
+	"regexp"
 	"testing"
+	"time"
+
+	"github.com/alexedwards/scs/v2"
+	"github.com/go-playground/form/v4"
+	"snippetbox.dkimhw.com/internal/models/mocks"
 )
+
+// Define a regular expression which captures the CSRF token value from the
+// HTML for our user signup page.
+var csrfTokenRX = regexp.MustCompile(`<input type='hidden' name='csrf_token' value='(.+)'>`)
+
+func extractCSRFToken(t *testing.T, body string) string {
+	matches := csrfTokenRX.FindStringSubmatch(body)
+	fmt.Printf("hello %q", body)
+	if len(matches) < 2 {
+		t.Fatal("no csrf token found in body")
+	}
+
+	return html.UnescapeString(matches[1])
+}
 
 // Create a newTestApplication helper which returns an instance of our
 // application struct containing mocked dependencies.
 func newTestApplication(t *testing.T) *application {
+	// Create an instance of the template cache.
+	templateCache, err := newTemplateCache()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// And a form decoder
+	formDecoder := form.NewDecoder()
+
+	// And a session manager instance. Note that we use the same settings as
+	// production, except that we don't set a Store for the session manager.
+	// If no store is set, the SCS package will default to using a transient
+	// in-memory store, which is ideal for testing purposes
+	sessionManager := scs.New()
+	sessionManager.Lifetime = 12 * time.Hour
+	sessionManager.Cookie.Secure = true
+
 	return &application{
-		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
+		snippets:       &mocks.SnippetModel{},
+		users:          &mocks.UserModel{},
+		templateCache:  templateCache,
+		formDecoder:    formDecoder,
+		sessionManager: sessionManager,
 	}
 }
 
@@ -28,6 +72,8 @@ type testServer struct {
 func newTestServer(t *testing.T, h http.Handler) *testServer {
 	// Initialize the test server as normal.
 	ts := httptest.NewTLSServer(h)
+
+	fmt.Printf("dfsdds %v", ts)
 
 	// Initialize a new cookie jar.
 	jar, err := cookiejar.New(nil)
@@ -60,12 +106,16 @@ func (ts *testServer) get(t *testing.T, urlPath string) (int, http.Header, strin
 		t.Fatal(err)
 	}
 
+	fmt.Printf("get error %v", rs)
+
 	defer rs.Body.Close()
 	body, err := io.ReadAll(rs.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
 	body = bytes.TrimSpace(body)
+
+	fmt.Printf("dsfsd body %v", string(body))
 
 	return rs.StatusCode, rs.Header, string(body)
 }
