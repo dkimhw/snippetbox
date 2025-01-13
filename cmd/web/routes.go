@@ -28,6 +28,7 @@ func (app *application) routes() http.Handler {
 	dynamic := alice.New(app.sessionManager.LoadAndSave, noSurf, app.authenticate) // Unprotected application routes using the "dynamic" middleware chain.
 
 	mux.Handle("GET /{$}", dynamic.ThenFunc(app.home))
+	mux.Handle("GET /about", dynamic.ThenFunc(app.about))
 	mux.Handle("GET /snippet/view/{id}", dynamic.ThenFunc(app.snippetView))
 	mux.Handle("GET /user/signup", dynamic.ThenFunc(app.userSignup))
 	mux.Handle("POST /user/signup", dynamic.ThenFunc(app.userSignupPost))
@@ -40,6 +41,7 @@ func (app *application) routes() http.Handler {
 
 	mux.Handle("GET /snippet/create", protected.ThenFunc(app.snippetCreate))
 	mux.Handle("POST /snippet/create", protected.ThenFunc(app.snippetCreatePost))
+	mux.Handle("GET /account/view", protected.ThenFunc(app.accountView))
 	mux.Handle("POST /user/logout", protected.ThenFunc(app.userLogoutPost))
 
 	// Create a standard reusable middleware chain
